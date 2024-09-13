@@ -34,12 +34,16 @@ export  function Sender(){
             if(data.type==="createAnswer"){
                 pc.setRemoteDescription(data.sdp);
             }
-            else if(data.type ==="ice-candidate"){
+            else if(data.type ==="iceCandidate"){
                 pc.addIceCandidate(data.candidate);
             }
     }
     const stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-    pc.addTrack(stream.getVideoTracks()[0]);
+    pc.addTrack(stream.getVideoTracks()[0]);;
+    const video=document.createElement('video');
+    document.body.appendChild(video);
+    video.srcObject=stream;
+    video.play()
 }
 
     return <div>
