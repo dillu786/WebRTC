@@ -1,53 +1,97 @@
-import { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import VideoCallPrompt from "./videoCallPrompt";
 
+export const Receiver: React.FC = () => {
+  const [isStart, setIsStart] = useState(false);
+  const [accept, setAccept] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const socketRef = useRef<WebSocket | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
-export const Receiver = () => {
-   
-    useEffect(() => {
-        const socket = new WebSocket('ws://localhost:8080');
-        socket.onopen = () => {
-            socket.send(JSON.stringify({
-                type: 'receiver'
-            }));
-        }
-        socket.onmessage = async(event) => {
-            let pc:RTCPeerConnection|null=null;
-            const message = JSON.parse(event.data);
+  const onDecline = useCallback(() => {
+    console.log("onDecline called");
+    setAccept(false);
+    setIsDialogOpen(false);
+    socketRef.current?.send(JSON.stringify({ type: 'videoCallOfferDeclined' }));
+  }, []);
 
-            if (message.type === 'createOffer') {
-                const pc = new RTCPeerConnection();
-                pc.setRemoteDescription(message.sdp);
-                pc.onicecandidate=(event)=>{
-                    console.log(event);
-                    if(event.candidate){
-                        socket?.send(JSON.stringify({type:'iceCandidate',candidate:event.candidate}));
-                    }
-                }
-              
-                pc.ontrack =  (event) => {
-                    const video = document.createElement('video');
-                    document.body.appendChild(video);
-                    console.log(event.track)
-                    video.srcObject = new MediaStream([event.track]);
-                    video.play();
-                }
-                const answer= await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                socket.send(JSON.stringify({type:"createAnswer",sdp:pc.localDescription}));
-              
-            } else if (message.type === 'iceCandidate') {
-                if(pc!=null){
-                    //@ts-ignore
-                    pc.addIceCandidate(message.candidate);
-                }
-               
-            }
-        }
-    }, []);
+  const onAccept = useCallback(() => {
+    console.log("onAccept called");
+    setAccept(true);
+    setIsDialogOpen(false);
+    socketRef.current?.send(JSON.stringify({ type: 'videoCallOfferAccepted' }));
+    
 
- 
+  }, []);
 
-    return <div>
-        
+  useEffect(() => {
+    socketRef.current = new WebSocket('ws://localhost:8080');
+
+    socketRef.current.onopen = () => {
+      socketRef.current?.send(JSON.stringify({ type: 'receiver' }));
+    };
+
+    socketRef.current.onmessage = async (event) => {
+      const message = JSON.parse(event.data);
+
+      switch (message.type) {
+        case 'videoCallOffer':
+          console.log("reached receiver");
+          setIsStart(true);
+          setIsDialogOpen(true);
+          break;
+
+        case 'createOffer':
+          if (accept) {
+            peerConnectionRef.current = new RTCPeerConnection();
+            const pc = peerConnectionRef.current;
+
+            pc.onicecandidate = (event) => {
+              if (event.candidate) {
+                socketRef.current?.send(JSON.stringify({ type: 'iceCandidate', candidate: event.candidate }));
+              }
+            };
+
+            pc.ontrack = (event) => {
+              if (videoRef.current) {
+                videoRef.current.srcObject = new MediaStream([event.track]);
+                videoRef.current.play().catch(e => console.error("Error playing video:", e));
+              }
+            };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(message.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            socketRef.current?.send(JSON.stringify({ type: "createAnswer", sdp: pc.localDescription }));
+          }
+          break;
+
+        case 'iceCandidate':
+          if (peerConnectionRef.current) {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(message.candidate));
+          }
+          break;
+      }
+    };
+
+    return () => {
+      socketRef.current?.close();
+    };
+  }, [accept]);
+
+  return (
+    <div>
+      {isStart && (
+        <VideoCallPrompt
+          callerName="Dilshad Azam"
+          isOpen={isDialogOpen}
+          onAccept={onAccept}
+          onDecline={onDecline}
+        />
+      )}
+      <video ref={videoRef} />
     </div>
-}
+  );
+};
