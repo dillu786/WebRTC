@@ -6,7 +6,7 @@ let receiverSocket:WebSocket|null=null;
 wss.on("connection",(ws:WebSocket)=>{
     ws.on("message",(data:any)=>{
         const message=JSON.parse(data);
-        console.log(JSON.stringify(message));
+        //console.log(JSON.stringify(message));
         if(message.type==="sender"){
             senderSocket=ws;
             console.log('sender set');
@@ -32,13 +32,17 @@ wss.on("connection",(ws:WebSocket)=>{
             }
             senderSocket?.send(JSON.stringify({type:"createAnswer",sdp:message.sdp}))
         }
-        else if(message.type==="createOffer"){
+        else if(message.type==="createOfferReceiver"){
+            console.log("offer from receiver");
               if(ws===receiverSocket){
+                console.log("inside if")
                 senderSocket?.send(JSON.stringify({type:"createOffer",sdp:message.sdp}))
               }
         }
-        else if(message.type==="createAnswer"){
+        else if(message.type==="createAnswerSender"){
+            console.log("answer from sender");
             if(ws===senderSocket){
+              console.log("inside if")
               receiverSocket?.send(JSON.stringify({type:"createOffer",sdp:message.sdp}))
             }
       }
@@ -53,6 +57,7 @@ wss.on("connection",(ws:WebSocket)=>{
         else if(message.type==="videoCallOffer"){
             console.log("videoCallOffer set");
             if(ws===senderSocket){
+                console.log("inside sender condition")
                 receiverSocket?.send(JSON.stringify({type:"videoCallOffer"}));
             }
         }
