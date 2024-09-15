@@ -34,7 +34,7 @@ export const Receiver = () => {
     if (!socketRef.current) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
         await localVideoRef.current.play();
@@ -104,12 +104,20 @@ export const Receiver = () => {
           await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(message.candidate));
         }
         break;
+      case "endCall":
+           peerConnectionRef.current?.close();
+           if(localVideoRef && localVideoRef.current)
+             stopMediaDevices();
+           if(localVideoRef && localVideoRef.current)
+            localVideoRef.current.srcObject=null;
+           break;
+      
     }
   }, [isCallAccepted]);
 
   useEffect(() => {
     
-
+    peerConnectionRef.current = new RTCPeerConnection();
     socketRef.current.onopen = () => {
       setIsConnected(true);
       socketRef.current?.send(JSON.stringify({ type: 'receiver' }));
@@ -122,6 +130,7 @@ export const Receiver = () => {
     socketRef.current.onmessage = handleWebSocketMessage;
 
     // return () => {
+    //   console.log("component unmounted");
     //   socketRef.current?.close();
     //   peerConnectionRef.current?.close();
     // };
@@ -157,6 +166,7 @@ export const Receiver = () => {
             stopMediaDevices();
             if(localVideoRef && localVideoRef.current)
                 localVideoRef.current.srcObject=null;
+              socketRef.current.send(JSON.stringify({type:"endCall"}));
             }}>EndCall</Button>}
       </div>
     </div>

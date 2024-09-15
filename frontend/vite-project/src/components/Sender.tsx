@@ -15,6 +15,7 @@ export function stopMediaDevices() {
       .catch(err => {
         console.error('Error closing camera and microphone:', err);
       });
+     // window.location.reload();
   }
   
 export function Sender() {
@@ -58,7 +59,7 @@ export function Sender() {
               track.stop();
               console.log(`${track.kind} track stopped`);
             });
-            
+           // window.location.reload();
             console.log('Camera and microphone closed successfully');
           })
 
@@ -84,6 +85,12 @@ export function Sender() {
                 break;
             case "iceCandidate":
                 await peerConnectionRef.current?.addIceCandidate(new RTCIceCandidate(message.candidate));
+                break;
+            case "endCall":
+                peerConnectionRef.current?.close();
+                stopMediaDevices();
+                if(localVideoRef && localVideoRef.current)
+                localVideoRef.current.srcObject=null;
                 break;
         }
     }, []);
@@ -132,7 +139,7 @@ export function Sender() {
         };
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             stream.getTracks().forEach(track => peerConnectionRef.current?.addTrack(track, stream));
 
             if (localVideoRef.current) {
@@ -170,6 +177,7 @@ export function Sender() {
        {isStreaming && <Button onClick={async()=>{
         peerConnectionRef.current?.close()
             stopMediaDevices();
+            socketRef.current.send(JSON.stringify({type:"endCall"}));
         }}>EndCall</Button>}
       </div>
     </div>

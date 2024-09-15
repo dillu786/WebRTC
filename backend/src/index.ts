@@ -69,5 +69,13 @@ wss.on("connection",(ws:WebSocket)=>{
                 senderSocket?.send(JSON.stringify({type:"videoCallOfferAccepted"}));
             }
         }
+        else if(message.type==="endCall"){
+            if(ws===receiverSocket){
+                senderSocket?.send(JSON.stringify({type:"endCall"}))
+            }
+            else if(ws===senderSocket){
+                receiverSocket?.send(JSON.stringify({type:"endCall"}))
+            }
+        }
     })
 })
