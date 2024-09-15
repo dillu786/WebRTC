@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
+import { Maximize2, Minimize2 } from 'lucide-react';
 export function stopMediaDevices() {
     navigator.mediaDevices.getUserMedia({ audio: true, video: true })
       .then(stream => {
@@ -15,7 +16,7 @@ export function stopMediaDevices() {
       .catch(err => {
         console.error('Error closing camera and microphone:', err);
       });
-     // window.location.reload();
+       window.location.reload();
   }
   
 export function Sender() {
@@ -25,6 +26,7 @@ export function Sender() {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+    const [isLocalFullscreen, setIsLocalFullscreen] = useState(false);
 
     useEffect(() => {
        // socketRef.current = new WebSocket('ws://localhost:8080');
@@ -46,8 +48,23 @@ export function Sender() {
         //     peerConnectionRef.current?.close();
         // };
     }, []);
+    useEffect(() => {
+      const handleFullscreenChange = () => {
+          setIsLocalFullscreen(!!document.fullscreenElement);
+      };
 
- 
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+  const toggleLocalFullscreen = () => {
+    if (!document.fullscreenElement) {
+        localVideoRef.current?.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+};
       // Call this function when you want to close both camera and microphone
       function stopMediaDevices() {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
@@ -59,7 +76,7 @@ export function Sender() {
               track.stop();
               console.log(`${track.kind} track stopped`);
             });
-           // window.location.reload();
+            window.location.reload();
             console.log('Camera and microphone closed successfully');
           })
 
@@ -156,20 +173,36 @@ export function Sender() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
              <div className="mb-4 text-xl font-bold">Video Call Sender</div>
             <Button onClick={askForVideoCall} disabled={!isConnected || isStreaming}>
-                {isStreaming ? "Streaming" : "Send Video"}
+                {isStreaming ? "Streaming" : "Make a video Call"}
             </Button>
          
-           
-      <div className="flex space-x-4">
-        <div className="flex flex-col items-center">
-          <div className="mb-2 font-semibold">Remote Video</div>
-          <video ref={remoteVideoRef} className="w-64 h-48 bg-black" playsInline />
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="mb-2 font-semibold">Local Video</div>
-          <video ref={localVideoRef} className="w-64 h-48 bg-black" playsInline  />
-        </div>
-      </div>
+            <div className="flex space-x-4">
+                <div className="flex flex-col items-center">
+                    <div className="mb-2 font-semibold">Remote Video</div>
+                    <div className="relative">
+                    <video ref={remoteVideoRef} className="w-48 h-64 bg-black" playsInline />
+                    <button
+                            onClick={toggleLocalFullscreen}
+                            className="absolute bottom-2 right-2 bg-white bg-opacity-50 p-1 rounded-full hover:bg-opacity-75 transition-opacity"
+                        >
+                            {isLocalFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                        </button>
+                    </div>
+                    
+                </div>
+                <div className="flex flex-col items-center">
+                    <div className="mb-2 font-semibold">Local Video</div>
+                    <div className="relative">
+                        <video ref={localVideoRef} className="w-48 h-64 bg-black" playsInline />
+                        <button
+                            onClick={toggleLocalFullscreen}
+                            className="absolute bottom-2 right-2 bg-white bg-opacity-50 p-1 rounded-full hover:bg-opacity-75 transition-opacity"
+                        >
+                            {isLocalFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                        </button>
+                    </div>
+                </div>
+            </div>
       <div className="mt-4 text-sm text-gray-600">
         {isConnected ? 'Connected to server' : 'Disconnected from server'}
       </div>

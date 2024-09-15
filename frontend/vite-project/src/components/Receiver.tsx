@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import VideoCallPrompt from "./videoCallPrompt";
 import { Button } from "./ui/button";
 import { stopMediaDevices } from "./Sender";
+import { Maximize2, Minimize2 } from 'lucide-react';
 export const Receiver = () => {
   const [isCallOffered, setIsCallOffered] = useState(false);
   const [isStreaming,setIsStreaming]=useState(false);
@@ -12,6 +13,7 @@ export const Receiver = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const [isLocalFullscreen, setIsLocalFullscreen] = useState(false);
 
   const onDecline = useCallback(() => {
     console.log("Call declined");
@@ -72,7 +74,15 @@ export const Receiver = () => {
       console.error("Error accessing media devices:", error);
     }
   }, []);
-
+  const toggleLocalFullscreen = () => {
+    if (!document.fullscreenElement) {
+        localVideoRef.current?.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+};
   const handleWebSocketMessage = useCallback(async (event: MessageEvent) => {
     const message = JSON.parse(event.data);
     console.log('Received message:', message.type);
@@ -114,7 +124,14 @@ export const Receiver = () => {
       
     }
   }, [isCallAccepted]);
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+        setIsLocalFullscreen(!!document.fullscreenElement);
+    };
 
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+}, []);
   useEffect(() => {
     
     peerConnectionRef.current = new RTCPeerConnection();
@@ -146,17 +163,33 @@ export const Receiver = () => {
           onDecline={onDecline}
         />
       )}
-      <div className="mb-4 text-xl font-bold">Video Call Receiver</div>
-      <div className="flex space-x-4">
-        <div className="flex flex-col items-center">
-          <div className="mb-2 font-semibold">Remote Video</div>
-          <video ref={remoteVideoRef} className="w-64 h-48 bg-black" playsInline />
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="mb-2 font-semibold">Local Video</div>
-          <video ref={localVideoRef} className="w-64 h-48 bg-black" playsInline  />
-        </div>
-      </div>
+       <div className="flex space-x-4">
+                <div className="flex flex-col items-center">
+                    <div className="mb-2 font-semibold">Remote Video</div>
+                    <div className="relative">
+                    <video ref={remoteVideoRef} className="w-48 h-64 bg-black" playsInline />
+                    <button
+                            onClick={toggleLocalFullscreen}
+                            className="absolute bottom-2 right-2 bg-white bg-opacity-50 p-1 rounded-full hover:bg-opacity-75 transition-opacity"
+                        >
+                            {isLocalFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                        </button>
+                    </div>
+                    
+                </div>
+                <div className="flex flex-col items-center">
+                    <div className="mb-2 font-semibold">Local Video</div>
+                    <div className="relative">
+                        <video ref={localVideoRef} className="w-48 h-64 bg-black" playsInline />
+                        <button
+                            onClick={toggleLocalFullscreen}
+                            className="absolute bottom-2 right-2 bg-white bg-opacity-50 p-1 rounded-full hover:bg-opacity-75 transition-opacity"
+                        >
+                            {isLocalFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                        </button>
+                    </div>
+                </div>
+            </div>
       <div className="mt-4 text-sm text-gray-600">
         {isConnected ? 'Connected to server' : 'Disconnected from server'}
       </div>
